@@ -3,12 +3,13 @@
 // http://miot-spec.org/miot-spec-v2/instance?type=urn:miot-spec-v2:device:air-purifier:0000A007:zhimi-ma4:1
 // https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference
 
-var Service, Characteristic;
+var Service, Characteristic, FakeGatoHistoryService;
 var MIoTAirPurifier = require('./MIoTAirPurifier');
 
 module.exports = function(homebridge) {
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
+    FakeGatoHistoryService = require('fakegato-history')(homebridge);
 
     homebridge.registerAccessory("homebridge-xiaomi-air-purifier3", "XiaomiAirPurifier3", XiaomiAirPurifier3);
 }
@@ -19,6 +20,7 @@ function XiaomiAirPurifier3(log, config) {
     this.services = [];
     this.pm25_breakpoints = [5, 12, 35, 55];
     this.did = config['did'];
+    this.loggingService = new FakeGatoHistoryService("room", this);
 
     this.miotPurifier = new MIoTAirPurifier(config['did'], config['token'], config['ip']);
 
@@ -152,6 +154,7 @@ XiaomiAirPurifier3.prototype.getServices = function() {
     this.services.push(this.airQualitySensorService);
     this.services.push(this.temperatureSensorService);
     this.services.push(this.humiditySensorService);
+    this.services.push(this.loggingService);
 
     return this.services;
 }
@@ -528,6 +531,7 @@ XiaomiAirPurifier3.prototype.updatePM2_5Density = function() {
     this.log('updatePM2_5Density');
 
     try {
+        this.loggingService.addEntry({time: Math.round(new Date().valueOf() / 1000), ppm: this.miotPurifier.get('pm25')});
         this.airQualitySensorService.setCharacteristic(Characteristic.PM2_5Density, this.miotPurifier.get('pm25'));
     }  catch (e) {
         this.log('updatePM2_5Density Failed: ' + e);
@@ -549,6 +553,7 @@ XiaomiAirPurifier3.prototype.updateTemperature = function() {
     this.log('updateTemperature');
 
     try {
+        this.loggingService.addEntry({time: Math.round(new Date().valueOf() / 1000), temp: this.miotPurifier.get('temp')});
         this.temperatureSensorService.setCharacteristic(Characteristic.CurrentTemperature, this.miotPurifier.get('temp'));
     }  catch (e) {
         this.log('updateTemperature Failed: ' + e);
@@ -570,6 +575,7 @@ XiaomiAirPurifier3.prototype.updateHumidity = function() {
     this.log('updateHumidity');
 
     try {
+        this.loggingService.addEntry({time: Math.round(new Date().valueOf() / 1000), humidity: this.miotPurifier.get('humidity')});
         this.humiditySensorService.setCharacteristic(Characteristic.CurrentRelativeHumidity, this.miotPurifier.get('humidity'));
     }  catch (e) {
         this.log('updateHumidity Failed: ' + e);
